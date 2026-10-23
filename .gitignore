@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Modelos e dados de IA
+*.gguf
+*.pt
+*.safetensors
+checkpoints/
+data/
+
+# Segredos e sistema
+.env
+.vscode/
+Thumbs.db
