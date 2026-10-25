@@ -17,10 +17,11 @@ Não há pretensão comercial. É um projeto de estudo e portfólio.
 ## Status
 
 **Fase 0, preparação.** Nada funcional ainda.
+🚧 **Fase 1, fundamentos.** Fase 0 concluída, o mini-GPT vem a seguir.
 
 ## Roadmap
 
-- [ ] **Fase 0:** preparação (repositório, ambiente, contas Colab e Kaggle)
+- [X] **Fase 0:** preparação (repositório, ambiente, contas Colab e Kaggle)
 - [ ] **Fase 1:** fundamentos, mini-GPT do zero (Trilha A)
 - [ ] **Fase 2:** modelo local com Ollama e persona da IARA (Trilha B)
 - [ ] **Fase 3:** backend com FastAPI, interface e histórico de conversas
