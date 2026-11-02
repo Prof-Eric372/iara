@@ -125,3 +125,34 @@ modelo = ModeloAtencao()
 xb, yb = get_batch("treino")
 logits, loss = modelo(xb, yb)
 print(logits.shape, loss.item())
+
+@torch.no_grad()
+def estimar_loss():
+    modelo.eval()
+    saida = {}
+    for split in ["treino", "validacao"]:
+        losses = torch.zeros(200)
+        for k in range(200):
+            xb, yb = get_batch(split)
+            _, loss = modelo(xb, yb)
+            losses[k] = loss.item()
+        saida[split] = losses.mean().item()
+    modelo.train()
+    return saida
+
+
+optimizer = torch.optim.AdamW(modelo.parameters(), lr=1e-3)
+batch_size = 32
+
+for passo in range(5000):
+    if passo % 500 == 0:
+        perdas = estimar_loss()
+        print(f"passo {passo}: treino {perdas['treino']:.4f} | validação {perdas['validacao']:.4f}")
+    xb, yb = get_batch("treino")
+    logits, loss = modelo(xb, yb)
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    optimizer.step()
+
+inicio = torch.zeros((1, 1), dtype=torch.long)
+print(decode(modelo.generate(inicio, 300)[0].tolist()))
