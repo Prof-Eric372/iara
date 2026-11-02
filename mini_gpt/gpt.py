@@ -85,13 +85,23 @@ class Head(nn.Module):
         v = self.value(x)
         return pesos @ v
 
+class MultiHead(nn.Module):
+    def __init__(self, num_cabecas, tamanho_cabeca):
+        super().__init__()
+        self.cabecas = nn.ModuleList([Head(tamanho_cabeca) for _ in range(num_cabecas)])
+        self.proj = nn.Linear(n_embd, n_embd)
+
+    def forward(self, x):
+        saida = torch.cat([h(x) for h in self.cabecas], dim=-1)
+        return self.proj(saida)
+
 
 class ModeloAtencao(nn.Module):
     def __init__(self):
         super().__init__()
         self.tabela_tokens = nn.Embedding(tamanho_vocab, n_embd)
         self.tabela_posicoes = nn.Embedding(block_size, n_embd)
-        self.cabeca = Head(n_embd)
+        self.cabeca = MultiHead(4, n_embd // 4)
         self.lm_head = nn.Linear(n_embd, tamanho_vocab)
 
     def forward(self, idx, alvos=None):
