@@ -95,6 +95,18 @@ class MultiHead(nn.Module):
         saida = torch.cat([h(x) for h in self.cabecas], dim=-1)
         return self.proj(saida)
 
+class FeedForward(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.rede = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
+        )
+
+    def forward(self, x):
+        return self.rede(x)
+
 
 class ModeloAtencao(nn.Module):
     def __init__(self):
@@ -102,6 +114,8 @@ class ModeloAtencao(nn.Module):
         self.tabela_tokens = nn.Embedding(tamanho_vocab, n_embd)
         self.tabela_posicoes = nn.Embedding(block_size, n_embd)
         self.cabeca = MultiHead(4, n_embd // 4)
+        self.ffwd = FeedForward()
+        self.ffwd = FeedForward()
         self.lm_head = nn.Linear(n_embd, tamanho_vocab)
 
     def forward(self, idx, alvos=None):
