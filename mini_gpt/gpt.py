@@ -65,6 +65,7 @@ print("y:", yb.shape)
 print(yb)
 
 n_embd = 32
+n_camadas = 1
 
 
 class Head(nn.Module):
@@ -108,14 +109,27 @@ class FeedForward(nn.Module):
         return self.rede(x)
 
 
+class Bloco(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.atencao = MultiHead(4, n_embd // 4)
+        self.ffwd = FeedForward()
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
+    def forward(self, x):
+        x = x + self.atencao(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
+        return x
+
+    
 class ModeloAtencao(nn.Module):
     def __init__(self):
         super().__init__()
         self.tabela_tokens = nn.Embedding(tamanho_vocab, n_embd)
         self.tabela_posicoes = nn.Embedding(block_size, n_embd)
-        self.cabeca = MultiHead(4, n_embd // 4)
-        self.ffwd = FeedForward()
-        self.ffwd = FeedForward()
+        self.blocos = nn.Sequential(*[Bloco() for _ in range(n_camadas)])
+        self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, tamanho_vocab)
 
     def forward(self, idx, alvos=None):
@@ -123,7 +137,8 @@ class ModeloAtencao(nn.Module):
         emb_tokens = self.tabela_tokens(idx)
         emb_pos = self.tabela_posicoes(torch.arange(T))
         x = emb_tokens + emb_pos
-        x = self.cabeca(x)
+        x = self.blocos(x)
+        x = self.ln_f(x)
         logits = self.lm_head(x)
         if alvos is None:
             loss = None
