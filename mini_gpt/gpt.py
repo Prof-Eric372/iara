@@ -3,6 +3,19 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+#Hiperparâmetros
+batch_size = 32
+block_size = 8
+n_embd = 32
+n_cabecas = 4
+n_camadas = 4
+lr = 1e-3
+max_passos = 5000
+intervalo_eval = 500
+iter_eval = 200
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Dispositivo:", device)
+
 CAMINHO = Path(__file__).parent/"data"/"domCasmurro.txt"
 
 with open(CAMINHO, encoding="utf-8") as f:
@@ -11,7 +24,7 @@ with open(CAMINHO, encoding="utf-8") as f:
 vocab = sorted(set(texto))
 tamanho_vocab = len(vocab)
 print("Tamanho do vocabulário:", tamanho_vocab)
-print("Caracteres: ", "".join(vocab))
+#print("Caracteres: ", "".join(vocab))
 
 stoi = {ch: i for i, ch in enumerate(vocab)}
 itos = {i: ch for i, ch in enumerate(vocab)}
@@ -21,33 +34,30 @@ def encode(s):
 
 def decode(ids):
     return "".join([itos[i] for i in ids])
-
-print(encode("Capitu"))
-print(decode(encode("Capitu")))
+#TESTE CAPITU
+#print(encode("Capitu"))
+#print(decode(encode("Capitu")))
 
 dados = torch.tensor(encode(texto), dtype=torch.long)
-print(dados.shape, dados.dtype)
-print(dados[:50])
+#print(dados.shape, dados.dtype)
+#print(dados[:50])
 
 n = int(0.9 * len(dados))
 treino = dados[:n]
 validacao = dados[n:]
 print("Treino:", len(treino), "| Validação:", len(validacao))
 
-print(decode(dados[:50].tolist()))
+#print(decode(dados[:50].tolist()))
 
-block_size = 8
-x = treino[:block_size]
-y = treino[1:block_size + 1]
+#x = treino[:block_size]
+#y = treino[1:block_size + 1]
 
-for t in range(block_size):
-    contexto = x[:t + 1]
-    alvo = y[t]
-    print(f"Entrada {contexto.tolist()} -> alvo {alvo.item()}")
+#for t in range(block_size):
+    #contexto = x[:t + 1]
+    #alvo = y[t]
+    #print(f"Entrada {contexto.tolist()} -> alvo {alvo.item()}")
 
 torch.manual_seed(1337)
-batch_size = 4
-block_size = 8
 
 
 def get_batch(split):
@@ -58,14 +68,11 @@ def get_batch(split):
     return x, y
 
 
-xb, yb = get_batch("treino")
-print("x:", xb.shape)
-print(xb)
-print("y:", yb.shape)
-print(yb)
-
-n_embd = 32
-n_camadas = 4
+#xb, yb = get_batch("treino")
+#print("x:", xb.shape)
+#print(xb)
+#print("y:", yb.shape)
+#print(yb)
 
 
 class Head(nn.Module):
@@ -112,7 +119,7 @@ class FeedForward(nn.Module):
 class Bloco(nn.Module):
     def __init__(self):
         super().__init__()
-        self.atencao = MultiHead(4, n_embd // 4)
+        self.atencao = MultiHead(n_cabecas, n_embd // n_cabecas)
         self.ffwd = FeedForward()
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
@@ -171,8 +178,8 @@ def estimar_loss():
     modelo.eval()
     saida = {}
     for split in ["treino", "validacao"]:
-        losses = torch.zeros(200)
-        for k in range(200):
+        losses = torch.zeros(iter_eval)
+        for k in range(iter_eval):
             xb, yb = get_batch(split)
             _, loss = modelo(xb, yb)
             losses[k] = loss.item()
@@ -181,11 +188,10 @@ def estimar_loss():
     return saida
 
 
-optimizer = torch.optim.AdamW(modelo.parameters(), lr=1e-3)
-batch_size = 32
+optimizer = torch.optim.AdamW(modelo.parameters(), lr=lr)
 
-for passo in range(5000):
-    if passo % 500 == 0:
+for passo in range(max_passos):
+    if passo % intervalo_eval == 0:
         perdas = estimar_loss()
         print(f"passo {passo}: treino {perdas['treino']:.4f} | validação {perdas['validacao']:.4f}")
     xb, yb = get_batch("treino")
