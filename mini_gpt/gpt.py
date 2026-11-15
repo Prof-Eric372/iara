@@ -13,6 +13,7 @@ lr = 1e-3
 max_passos = 5000
 intervalo_eval = 500
 iter_eval = 200
+dropout = 0.0
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Dispositivo:", device)
 
@@ -65,6 +66,7 @@ def get_batch(split):
     ix = torch.randint(len(base) - block_size, (batch_size,))
     x = torch.stack([base[i:i + block_size] for i in ix])
     y = torch.stack([base[i + 1:i + block_size + 1] for i in ix])
+    x, y = x.to(device), y.to(device)
     return x, y
 
 
@@ -82,6 +84,7 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embd, tamanho_cabeca, bias=False)
         self.value = nn.Linear(n_embd, tamanho_cabeca, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         B, T, C = x.shape
@@ -90,6 +93,7 @@ class Head(nn.Module):
         notas = (q @ k.transpose(-2, -1)) * k.shape[-1] ** -0.5
         notas = notas.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
         pesos = torch.softmax(notas, dim=-1)
+        pesos = self.dropout(pesos)
         v = self.value(x)
         return pesos @ v
 
@@ -98,10 +102,11 @@ class MultiHead(nn.Module):
         super().__init__()
         self.cabecas = nn.ModuleList([Head(tamanho_cabeca) for _ in range(num_cabecas)])
         self.proj = nn.Linear(n_embd, n_embd)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         saida = torch.cat([h(x) for h in self.cabecas], dim=-1)
-        return self.proj(saida)
+        return self.dropout(self.proj(saida))
 
 class FeedForward(nn.Module):
     def __init__(self):
@@ -110,11 +115,10 @@ class FeedForward(nn.Module):
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
         )
-
     def forward(self, x):
         return self.rede(x)
-
 
 class Bloco(nn.Module):
     def __init__(self):
@@ -142,7 +146,7 @@ class ModeloAtencao(nn.Module):
     def forward(self, idx, alvos=None):
         B, T = idx.shape
         emb_tokens = self.tabela_tokens(idx)
-        emb_pos = self.tabela_posicoes(torch.arange(T))
+        emb_pos = self.tabela_posicoes(torch.arange(T, device=idx.device))
         x = emb_tokens + emb_pos
         x = self.blocos(x)
         x = self.ln_f(x)
@@ -167,7 +171,7 @@ class ModeloAtencao(nn.Module):
         return idx
 
 
-modelo = ModeloAtencao()
+modelo = ModeloAtencao().to(device)
 print(sum(p.numel() for p in modelo.parameters()), "parâmetros")
 xb, yb = get_batch("treino")
 logits, loss = modelo(xb, yb)
@@ -200,5 +204,14 @@ for passo in range(max_passos):
     loss.backward()
     optimizer.step()
 
-inicio = torch.zeros((1, 1), dtype=torch.long)
+modelo.eval()
+inicio = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(modelo.generate(inicio, 300)[0].tolist()))
+
+torch.save({
+    "pesos": modelo.state_dict(),
+    "vocab": vocab,
+    "config": {"n_embd": n_embd, "n_cabecas": n_cabecas,
+               "n_camadas": n_camadas, "block_size": block_size},
+}, Path(__file__).parent / "minigpt.pt")
+print("Modelo salvo em minigpt.pt")
