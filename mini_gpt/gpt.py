@@ -65,7 +65,7 @@ print("y:", yb.shape)
 print(yb)
 
 n_embd = 32
-n_camadas = 1
+n_camadas = 4
 
 
 class Head(nn.Module):
@@ -161,6 +161,7 @@ class ModeloAtencao(nn.Module):
 
 
 modelo = ModeloAtencao()
+print(sum(p.numel() for p in modelo.parameters()), "parâmetros")
 xb, yb = get_batch("treino")
 logits, loss = modelo(xb, yb)
 print(logits.shape, loss.item())
